@@ -20,6 +20,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { FilesLocalService } from './files.service';
 import { FileResponseDto } from './dto/file-response.dto';
+import { assertSafeStoredFilename } from '../upload-constraints';
 import type { Response as ExpressResponse } from 'express';
 
 @ApiTags('Files')
@@ -58,6 +59,8 @@ export class FilesLocalController {
   @Get(':path')
   @ApiExcludeEndpoint()
   download(@Param('path') path: string, @Response() response: ExpressResponse) {
-    return response.sendFile(path, { root: './files' });
+    return response.sendFile(assertSafeStoredFilename(path), {
+      root: './files',
+    });
   }
 }
