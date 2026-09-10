@@ -9,9 +9,7 @@ description: Add entities/schemas and properties to existing entities via this p
 
 Before running any command, grep `package.json` `scripts` to determine `{db}`:
 
-- `generate:resource:all-db` present → `{db}` = `all-db` (PostgreSQL + MongoDB).
-- `generate:resource:relational` present (and no `all-db`) → `{db}` = `relational` (PostgreSQL/TypeORM).
-- `generate:resource:document` present (and no `all-db`) → `{db}` = `document` (MongoDB).
+- `generate:resource:relational` present (and no `all-db` / `document`) → `{db}` = `relational` (PostgreSQL/TypeORM).
 
 Do not ask the user — whichever `generate:resource:*` and `add:property:to-*` scripts remain in `package.json` are exactly the right ones to run.
 

@@ -76,7 +76,7 @@ export default registerAs<DatabaseConfig>('database', () => {
   validateConfig(process.env, EnvironmentVariablesValidator);
 
   return {
-    isDocumentDatabase: ['mongodb'].includes(process.env.DATABASE_TYPE ?? ''),
+    isDocumentDatabase: false,
     url: process.env.DATABASE_URL,
     type: process.env.DATABASE_TYPE,
     host: process.env.DATABASE_HOST,

@@ -13,7 +13,6 @@ End-to-end tests for the hygen-based code generators (`npm run generate:resource
 
 1. **Phase 1 (static)** — runs generators, then `npm run lint`, `npm run build`, then [generators-file-assertions.e2e-spec.ts](generators-file-assertions.e2e-spec.ts). No database, no app boot. Catches compile/lint regressions and DTO-shape errors.
 2. **Phase 2 (relational CRUD)** — boots Nest against PostgreSQL in Docker and exercises the generated REST endpoints. Uses [docker-compose.generators-relational.test.yaml](../../docker-compose.generators-relational.test.yaml) which mounts a custom [startup.relational.test.sh](startup.relational.test.sh) that includes the `migration:generate` step for the freshly-created entities.
-3. **Phase 3 (document CRUD)** — same for MongoDB. Reuses the existing [docker-compose.document.test.yaml](../../docker-compose.document.test.yaml) (no migrations needed for Mongoose).
 
 ## Running locally
 
@@ -21,14 +20,12 @@ Phase 1 only requires Node, no DB:
 
 ```bash
 npm run test:generators:relational
-npm run test:generators:document
 ```
 
-Phase 2 / 3 require Docker (Compose v2):
+Phase 2 requires Docker (Compose v2):
 
 ```bash
 npm run test:e2e:generators:relational:docker
-npm run test:e2e:generators:document:docker
 ```
 
 **Precondition:** your tracked working tree must be clean. The dirty-tree guard checks `git diff` (tracked changes only); brand-new untracked files outside the cleanup paths are fine.
