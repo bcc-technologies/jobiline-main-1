@@ -7,6 +7,11 @@ services:
       POSTGRES_USER: ${DATABASE_USERNAME}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
       POSTGRES_DB: ${DATABASE_NAME}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 2s
+      timeout: 5s
+      retries: 30
 
   maildev:
     build:
@@ -28,6 +33,9 @@ services:
       dockerfile: relational.test.Dockerfile
     env_file:
       - env-example-relational
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - ./src:/usr/src/app/src
       - ./test:/usr/src/app/test
