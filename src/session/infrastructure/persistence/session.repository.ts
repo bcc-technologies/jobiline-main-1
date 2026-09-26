@@ -31,4 +31,6 @@ export abstract class SessionRepository {
     userId: User['id'];
     excludeSessionId: Session['id'];
   }): Promise<void>;
+
+  abstract revokeByFamilyId(familyId: string, reason: string): Promise<void>;
 }

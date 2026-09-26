@@ -39,10 +39,11 @@ export class UsersService {
 
     let email: string | null = null;
 
-    if (createUserDto.email) {
-      const userObject = await this.usersRepository.findByEmail(
-        createUserDto.email,
-      );
+    const normalizedEmail = createUserDto.email?.trim().toLowerCase() ?? null;
+
+    if (normalizedEmail) {
+      const userObject =
+        await this.usersRepository.findByEmail(normalizedEmail);
       if (userObject) {
         throw new UnprocessableEntityException({
           status: HttpStatus.UNPROCESSABLE_ENTITY,
@@ -51,7 +52,7 @@ export class UsersService {
           },
         });
       }
-      email = createUserDto.email;
+      email = normalizedEmail;
     }
 
     let photo: FileType | null | undefined = undefined;
@@ -113,7 +114,7 @@ export class UsersService {
       };
     }
 
-    return this.usersRepository.create({
+    const user = await this.usersRepository.create({
       // Do not remove comment below.
       // <creating-property-payload />
       firstName: createUserDto.firstName,
@@ -126,6 +127,12 @@ export class UsersService {
       provider: createUserDto.provider ?? AuthProvidersEnum.email,
       socialId: createUserDto.socialId,
     });
+
+    if (role) {
+      await this.usersRepository.assignRole(user.id, Number(role.id));
+    }
+
+    return user;
   }
 
   findManyWithPagination({
@@ -153,7 +160,9 @@ export class UsersService {
   }
 
   findByEmail(email: User['email']): Promise<NullableType<User>> {
-    return this.usersRepository.findByEmail(email);
+    return this.usersRepository.findByEmail(
+      email ? email.trim().toLowerCase() : email,
+    );
   }
 
   findBySocialIdAndProvider({
@@ -267,6 +276,9 @@ export class UsersService {
       };
     }
 
+    const identityFields = updateUserDto as UpdateUserDto &
+      Partial<Pick<User, 'accountStatus' | 'emailVerifiedAt'>>;
+
     return this.usersRepository.update(id, {
       // Do not remove comment below.
       // <updating-property-payload />
@@ -279,6 +291,8 @@ export class UsersService {
       status,
       provider: updateUserDto.provider,
       socialId: updateUserDto.socialId,
+      accountStatus: identityFields.accountStatus,
+      emailVerifiedAt: identityFields.emailVerifiedAt,
     });
   }
 

@@ -51,4 +51,8 @@ export class SessionService {
   }): Promise<void> {
     return this.sessionRepository.deleteByUserIdWithExclude(conditions);
   }
+
+  revokeByFamilyId(familyId: string, reason: string): Promise<void> {
+    return this.sessionRepository.revokeByFamilyId(familyId, reason);
+  }
 }

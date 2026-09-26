@@ -37,4 +37,6 @@ export abstract class UserRepository {
   ): Promise<User | null>;
 
   abstract remove(id: User['id']): Promise<void>;
+
+  abstract assignRole(userId: User['id'], roleId: number): Promise<void>;
 }

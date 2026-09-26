@@ -18,6 +18,13 @@ export class RolesGuard implements CanActivate {
       .switchToHttp()
       .getRequest<RequestWithUser<JwtPayloadType | undefined>>();
 
-    return roles.map(String).includes(String(request.user?.role?.id));
+    const assignedRoles = [
+      request.user?.role?.id,
+      ...(request.user?.roles ?? []).map((role) => role.id),
+    ];
+
+    return roles.some((role) =>
+      assignedRoles.map(String).includes(String(role)),
+    );
   }
 }

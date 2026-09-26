@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Not, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { SessionEntity } from '../entities/session.entity';
 import { NullableType } from '../../../../../utils/types/nullable.type';
 
@@ -66,45 +66,71 @@ export class SessionRelationalRepository implements SessionRepository {
       Omit<Session, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>
     >,
   ): Promise<Session | null> {
+    const entity = await this.sessionRepository.findOne({
+      where: { id: Number(conditions.id) },
+    });
+
+    if (!entity || entity.revokedAt || entity.expiresAt <= new Date()) {
+      return null;
+    }
+
+    if (entity.hash !== conditions.hash) {
+      await this.revokeByFamilyId(entity.tokenFamilyId, 'refresh_reuse');
+      return null;
+    }
+
     const result = await this.sessionRepository.update(
       { id: Number(conditions.id), hash: conditions.hash },
-      { hash: payload.hash },
+      {
+        hash: payload.hash,
+        lastUsedAt: payload.lastUsedAt,
+      },
     );
 
     if (!result.affected) {
       return null;
     }
 
-    const entity = await this.sessionRepository.findOne({
+    const updatedEntity = await this.sessionRepository.findOne({
       where: { id: Number(conditions.id) },
     });
 
-    return entity ? SessionMapper.toDomain(entity) : null;
+    return updatedEntity ? SessionMapper.toDomain(updatedEntity) : null;
   }
 
   async deleteById(id: Session['id']): Promise<void> {
-    await this.sessionRepository.softDelete({
-      id: Number(id),
-    });
+    await this.sessionRepository.update(
+      { id: Number(id) },
+      { revokedAt: new Date(), revocationReason: 'logout' },
+    );
   }
 
   async deleteByUserId(conditions: { userId: User['id'] }): Promise<void> {
-    await this.sessionRepository.softDelete({
-      user: {
-        id: Number(conditions.userId),
-      },
-    });
+    await this.sessionRepository
+      .createQueryBuilder()
+      .update(SessionEntity)
+      .set({ revokedAt: new Date(), revocationReason: 'password_changed' })
+      .where('"userId" = :userId', { userId: Number(conditions.userId) })
+      .execute();
   }
 
   async deleteByUserIdWithExclude(conditions: {
     userId: User['id'];
     excludeSessionId: Session['id'];
   }): Promise<void> {
-    await this.sessionRepository.softDelete({
-      user: {
-        id: Number(conditions.userId),
-      },
-      id: Not(Number(conditions.excludeSessionId)),
-    });
+    await this.sessionRepository
+      .createQueryBuilder()
+      .update(SessionEntity)
+      .set({ revokedAt: new Date(), revocationReason: 'password_changed' })
+      .where('"userId" = :userId', { userId: Number(conditions.userId) })
+      .andWhere('"id" != :id', { id: Number(conditions.excludeSessionId) })
+      .execute();
+  }
+
+  async revokeByFamilyId(familyId: string, reason: string): Promise<void> {
+    await this.sessionRepository.update(
+      { tokenFamilyId: familyId },
+      { revokedAt: new Date(), revocationReason: reason },
+    );
   }
 }

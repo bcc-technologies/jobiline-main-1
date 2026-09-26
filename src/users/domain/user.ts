@@ -3,6 +3,7 @@ import { FileType } from '../../files/domain/file';
 import { Role } from '../../roles/domain/role';
 import { Status } from '../../statuses/domain/status';
 import { ApiProperty } from '@nestjs/swagger';
+import { AccountStatus } from './account-status.enum';
 
 const idType = Number;
 
@@ -47,6 +48,14 @@ export class User {
     example: 'Doe',
   })
   lastName: string | null;
+  phone?: string | null;
+  displayName?: string | null;
+  preferredLanguage?: string | null;
+  timezone?: string | null;
+  emailVerifiedAt?: Date | null;
+  phoneVerifiedAt?: Date | null;
+  lastLoginAt?: Date | null;
+  accountStatus?: AccountStatus;
 
   @ApiProperty({
     type: () => FileType,
@@ -57,6 +66,7 @@ export class User {
     type: () => Role,
   })
   role?: Role | null;
+  roles?: Role[];
 
   @ApiProperty({
     type: () => Status,

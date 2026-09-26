@@ -11,6 +11,13 @@ export class SessionMapper {
       domainEntity.user = UserMapper.toDomain(raw.user);
     }
     domainEntity.hash = raw.hash;
+    domainEntity.tokenFamilyId = raw.tokenFamilyId;
+    domainEntity.expiresAt = raw.expiresAt;
+    domainEntity.lastUsedAt = raw.lastUsedAt;
+    domainEntity.revokedAt = raw.revokedAt;
+    domainEntity.revocationReason = raw.revocationReason;
+    domainEntity.userAgent = raw.userAgent;
+    domainEntity.ipAddress = raw.ipAddress;
     domainEntity.createdAt = raw.createdAt;
     domainEntity.updatedAt = raw.updatedAt;
     domainEntity.deletedAt = raw.deletedAt;
@@ -26,6 +33,13 @@ export class SessionMapper {
       persistenceEntity.id = domainEntity.id;
     }
     persistenceEntity.hash = domainEntity.hash;
+    persistenceEntity.tokenFamilyId = domainEntity.tokenFamilyId;
+    persistenceEntity.expiresAt = domainEntity.expiresAt;
+    persistenceEntity.lastUsedAt = domainEntity.lastUsedAt;
+    persistenceEntity.revokedAt = domainEntity.revokedAt;
+    persistenceEntity.revocationReason = domainEntity.revocationReason;
+    persistenceEntity.userAgent = domainEntity.userAgent;
+    persistenceEntity.ipAddress = domainEntity.ipAddress;
     persistenceEntity.user = user;
     persistenceEntity.createdAt = domainEntity.createdAt;
     persistenceEntity.updatedAt = domainEntity.updatedAt;

@@ -28,6 +28,10 @@ import { Session } from '../session/domain/session';
 import { SessionService } from '../session/session.service';
 import { StatusEnum } from '../statuses/statuses.enum';
 import { User } from '../users/domain/user';
+import { AccountStatus } from '../users/domain/account-status.enum';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { AuthIdentityEntity } from './infrastructure/persistence/relational/entities/auth-identity.entity';
 
 @Injectable()
 export class AuthService {
@@ -37,6 +41,8 @@ export class AuthService {
     private readonly sessionService: SessionService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService<AllConfigType>,
+    @InjectRepository(AuthIdentityEntity)
+    private readonly authIdentityRepository: Repository<AuthIdentityEntity>,
   ) {}
 
   async validateLogin(loginDto: AuthEmailLoginDto): Promise<LoginResponseDto> {
@@ -46,6 +52,13 @@ export class AuthService {
       throw this.invalidLoginException({
         email: 'notFound',
       });
+    }
+
+    if (
+      user.accountStatus === AccountStatus.SUSPENDED ||
+      user.accountStatus === AccountStatus.DEACTIVATED
+    ) {
+      throw new UnauthorizedException();
     }
 
     if (user.provider !== AuthProvidersEnum.email) {
@@ -79,11 +92,26 @@ export class AuthService {
     const session = await this.sessionService.create({
       user,
       hash,
+      tokenFamilyId: crypto.randomUUID(),
+      expiresAt: new Date(
+        Date.now() +
+          ms(
+            this.configService.getOrThrow('auth.refreshExpires', {
+              infer: true,
+            }),
+          ),
+      ),
+      lastUsedAt: null,
+      revokedAt: null,
+      revocationReason: null,
+      userAgent: null,
+      ipAddress: null,
     });
 
     const { token, refreshToken, tokenExpires } = await this.getTokensData({
       id: user.id,
       role: user.role,
+      roles: user.roles,
       sessionId: session.id,
       hash,
     });
@@ -118,10 +146,24 @@ export class AuthService {
     }
 
     if (socialData.id) {
-      user = await this.usersService.findBySocialIdAndProvider({
-        socialId: socialData.id,
-        provider: authProvider,
+      const identity = await this.authIdentityRepository.findOne({
+        where: {
+          provider: authProvider,
+          providerSubject: socialData.id,
+        },
+        relations: { user: true },
       });
+
+      if (identity) {
+        identity.lastUsedAt = new Date();
+        await this.authIdentityRepository.save(identity);
+        user = await this.usersService.findById(identity.user.id);
+      } else {
+        user = await this.usersService.findBySocialIdAndProvider({
+          socialId: socialData.id,
+          provider: authProvider,
+        });
+      }
     }
 
     if (user) {
@@ -129,7 +171,7 @@ export class AuthService {
         user.email = socialEmail;
       }
       await this.usersService.update(user.id, user);
-    } else if (userByEmail) {
+    } else if (userByEmail && userByEmail.emailVerifiedAt) {
       user = userByEmail;
 
       if (user.status?.id?.toString() === StatusEnum.inactive.toString()) {
@@ -159,6 +201,27 @@ export class AuthService {
       user = await this.usersService.findById(user.id);
     }
 
+    if (user && socialData.id) {
+      const identity = await this.authIdentityRepository.findOne({
+        where: {
+          provider: authProvider,
+          providerSubject: socialData.id,
+        },
+      });
+
+      if (!identity) {
+        await this.authIdentityRepository.save(
+          this.authIdentityRepository.create({
+            user: { id: Number(user.id) },
+            provider: authProvider,
+            providerSubject: socialData.id,
+            providerEmail: socialEmail ?? null,
+            lastUsedAt: new Date(),
+          }),
+        );
+      }
+    }
+
     if (!user) {
       throw new UnprocessableEntityException({
         status: HttpStatus.UNPROCESSABLE_ENTITY,
@@ -166,6 +229,13 @@ export class AuthService {
           user: 'userNotFound',
         },
       });
+    }
+
+    if (
+      user.accountStatus === AccountStatus.SUSPENDED ||
+      user.accountStatus === AccountStatus.DEACTIVATED
+    ) {
+      throw new UnauthorizedException();
     }
 
     const hash = crypto
@@ -176,6 +246,20 @@ export class AuthService {
     const session = await this.sessionService.create({
       user,
       hash,
+      tokenFamilyId: crypto.randomUUID(),
+      expiresAt: new Date(
+        Date.now() +
+          ms(
+            this.configService.getOrThrow('auth.refreshExpires', {
+              infer: true,
+            }),
+          ),
+      ),
+      lastUsedAt: null,
+      revokedAt: null,
+      revocationReason: null,
+      userAgent: null,
+      ipAddress: null,
     });
 
     const {
@@ -185,6 +269,7 @@ export class AuthService {
     } = await this.getTokensData({
       id: user.id,
       role: user.role,
+      roles: user.roles,
       sessionId: session.id,
       hash,
     });
@@ -269,6 +354,8 @@ export class AuthService {
     user.status = {
       id: StatusEnum.active,
     };
+    user.accountStatus = AccountStatus.ACTIVE;
+    user.emailVerifiedAt = new Date();
 
     await this.usersService.update(user.id, user);
   }
@@ -530,10 +617,14 @@ export class AuthService {
 
     const session = await this.sessionService.updateByHash(
       { id: data.sessionId, hash: data.hash },
-      { hash },
+      { hash, lastUsedAt: new Date() },
     );
 
     if (!session) {
+      throw new UnauthorizedException();
+    }
+
+    if (session.expiresAt <= new Date() || session.revokedAt) {
       throw new UnauthorizedException();
     }
 
@@ -548,6 +639,7 @@ export class AuthService {
       role: {
         id: user.role.id,
       },
+      roles: user.roles,
       sessionId: session.id,
       hash,
     });
@@ -599,6 +691,7 @@ export class AuthService {
   private async getTokensData(data: {
     id: User['id'];
     role: User['role'];
+    roles?: User['roles'];
     sessionId: Session['id'];
     hash: Session['hash'];
   }) {
@@ -613,6 +706,7 @@ export class AuthService {
         {
           id: data.id,
           role: data.role,
+          roles: data.roles,
           sessionId: data.sessionId,
         },
         {

@@ -23,6 +23,7 @@ export class RoleSeedService {
         this.repository.create({
           id: RoleEnum.user,
           name: 'User',
+          code: 'USER',
         }),
       );
     }
@@ -38,6 +39,7 @@ export class RoleSeedService {
         this.repository.create({
           id: RoleEnum.admin,
           name: 'Admin',
+          code: 'SUPER_ADMIN',
         }),
       );
     }

@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { RoleEnum } from '../../../../roles/roles.enum';
 import { StatusEnum } from '../../../../statuses/statuses.enum';
 import { UserEntity } from '../../../../users/infrastructure/persistence/relational/entities/user.entity';
+import { AccountStatus } from '../../../../users/domain/account-status.enum';
 
 @Injectable()
 export class UserSeedService {
@@ -27,7 +28,7 @@ export class UserSeedService {
       const salt = await bcrypt.genSalt();
       const password = await bcrypt.hash('secret', salt);
 
-      await this.repository.save(
+      const admin = await this.repository.save(
         this.repository.create({
           firstName: 'Super',
           lastName: 'Admin',
@@ -36,12 +37,18 @@ export class UserSeedService {
           role: {
             id: RoleEnum.admin,
             name: 'Admin',
+            code: 'SUPER_ADMIN',
           },
           status: {
             id: StatusEnum.active,
             name: 'Active',
           },
+          accountStatus: AccountStatus.ACTIVE,
         }),
+      );
+      await this.repository.manager.query(
+        `INSERT INTO "user_roles" ("user_id", "role_id") VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [admin.id, RoleEnum.admin],
       );
     }
 
@@ -57,7 +64,7 @@ export class UserSeedService {
       const salt = await bcrypt.genSalt();
       const password = await bcrypt.hash('secret', salt);
 
-      await this.repository.save(
+      const user = await this.repository.save(
         this.repository.create({
           firstName: 'John',
           lastName: 'Doe',
@@ -65,13 +72,19 @@ export class UserSeedService {
           password,
           role: {
             id: RoleEnum.user,
-            name: 'Admin',
+            name: 'User',
+            code: 'USER',
           },
           status: {
             id: StatusEnum.active,
             name: 'Active',
           },
+          accountStatus: AccountStatus.ACTIVE,
         }),
+      );
+      await this.repository.manager.query(
+        `INSERT INTO "user_roles" ("user_id", "role_id") VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [user.id, RoleEnum.user],
       );
     }
   }

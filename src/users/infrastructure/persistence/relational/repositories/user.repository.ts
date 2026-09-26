@@ -123,4 +123,14 @@ export class UsersRelationalRepository implements UserRepository {
   async remove(id: User['id']): Promise<void> {
     await this.usersRepository.softDelete(id);
   }
+
+  async assignRole(userId: User['id'], roleId: number): Promise<void> {
+    await this.usersRepository.manager
+      .createQueryBuilder()
+      .insert()
+      .into('user_roles')
+      .values({ user_id: Number(userId), role_id: roleId })
+      .orIgnore()
+      .execute();
+  }
 }

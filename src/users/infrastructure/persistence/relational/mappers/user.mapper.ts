@@ -4,6 +4,7 @@ import { RoleEntity } from '../../../../../roles/infrastructure/persistence/rela
 import { StatusEntity } from '../../../../../statuses/infrastructure/persistence/relational/entities/status.entity';
 import { User } from '../../../../domain/user';
 import { UserEntity } from '../entities/user.entity';
+import { AccountStatus } from '../../../../domain/account-status.enum';
 
 export class UserMapper {
   static toDomain(raw: UserEntity): User {
@@ -15,10 +16,19 @@ export class UserMapper {
     domainEntity.socialId = raw.socialId;
     domainEntity.firstName = raw.firstName;
     domainEntity.lastName = raw.lastName;
+    domainEntity.phone = raw.phone;
+    domainEntity.displayName = raw.displayName;
+    domainEntity.preferredLanguage = raw.preferredLanguage;
+    domainEntity.timezone = raw.timezone;
+    domainEntity.emailVerifiedAt = raw.emailVerifiedAt;
+    domainEntity.phoneVerifiedAt = raw.phoneVerifiedAt;
+    domainEntity.lastLoginAt = raw.lastLoginAt;
+    domainEntity.accountStatus = raw.accountStatus;
     if (raw.photo) {
       domainEntity.photo = FileMapper.toDomain(raw.photo);
     }
     domainEntity.role = raw.role;
+    domainEntity.roles = raw.roles;
     domainEntity.status = raw.status;
     domainEntity.createdAt = raw.createdAt;
     domainEntity.updatedAt = raw.updatedAt;
@@ -61,6 +71,16 @@ export class UserMapper {
     persistenceEntity.socialId = domainEntity.socialId;
     persistenceEntity.firstName = domainEntity.firstName;
     persistenceEntity.lastName = domainEntity.lastName;
+    persistenceEntity.phone = domainEntity.phone ?? null;
+    persistenceEntity.displayName = domainEntity.displayName ?? null;
+    persistenceEntity.preferredLanguage =
+      domainEntity.preferredLanguage ?? null;
+    persistenceEntity.timezone = domainEntity.timezone ?? null;
+    persistenceEntity.emailVerifiedAt = domainEntity.emailVerifiedAt ?? null;
+    persistenceEntity.phoneVerifiedAt = domainEntity.phoneVerifiedAt ?? null;
+    persistenceEntity.lastLoginAt = domainEntity.lastLoginAt ?? null;
+    persistenceEntity.accountStatus =
+      domainEntity.accountStatus ?? AccountStatus.PENDING_VERIFICATION;
     persistenceEntity.photo = photo;
     persistenceEntity.role = role;
     persistenceEntity.status = status;
