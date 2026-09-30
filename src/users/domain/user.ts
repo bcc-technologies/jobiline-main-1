@@ -21,21 +21,7 @@ export class User {
   email: string | null;
 
   @Exclude({ toPlainOnly: true })
-  password?: string;
-
-  @ApiProperty({
-    type: String,
-    example: 'email',
-  })
-  @Expose({ groups: ['me', 'admin'] })
-  provider: string;
-
-  @ApiProperty({
-    type: String,
-    example: '1234567890',
-  })
-  @Expose({ groups: ['me', 'admin'] })
-  socialId?: string | null;
+  password?: string | null;
 
   @ApiProperty({
     type: String,

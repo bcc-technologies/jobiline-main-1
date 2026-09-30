@@ -11,6 +11,7 @@ import { SessionModule } from '../session/session.module';
 import { UsersModule } from '../users/users.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthIdentityEntity } from './infrastructure/persistence/relational/entities/auth-identity.entity';
+import { AuthIdentityService } from './auth-identity.service';
 
 @Module({
   imports: [
@@ -22,7 +23,13 @@ import { AuthIdentityEntity } from './infrastructure/persistence/relational/enti
     TypeOrmModule.forFeature([AuthIdentityEntity]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtRefreshStrategy, AnonymousStrategy],
+  providers: [
+    AuthService,
+    AuthIdentityService,
+    JwtStrategy,
+    JwtRefreshStrategy,
+    AnonymousStrategy,
+  ],
   exports: [AuthService],
 })
 export class AuthModule {}

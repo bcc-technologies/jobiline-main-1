@@ -25,11 +25,7 @@ export class CreateUserDto {
 
   @ApiProperty()
   @MinLength(6)
-  password?: string;
-
-  provider?: string;
-
-  socialId?: string | null;
+  password?: string | null;
 
   @ApiProperty({ example: 'John', type: String })
   @IsNotEmpty()

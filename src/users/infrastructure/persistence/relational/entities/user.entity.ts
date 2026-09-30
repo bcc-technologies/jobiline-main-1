@@ -17,7 +17,6 @@ import { RoleEntity } from '../../../../../roles/infrastructure/persistence/rela
 import { StatusEntity } from '../../../../../statuses/infrastructure/persistence/relational/entities/status.entity';
 import { FileEntity } from '../../../../../files/infrastructure/persistence/relational/entities/file.entity';
 
-import { AuthProvidersEnum } from '../../../../../auth/auth-providers.enum';
 import { EntityRelationalHelper } from '../../../../../utils/relational-entity-helper';
 import { AuthIdentityEntity } from '../../../../../auth/infrastructure/persistence/relational/entities/auth-identity.entity';
 import { AccountStatus } from '../../../../domain/account-status.enum';
@@ -34,15 +33,8 @@ export class UserEntity extends EntityRelationalHelper {
   @Column({ type: String, unique: true, nullable: true })
   email: string | null;
 
-  @Column({ name: 'password_hash', nullable: true })
-  password?: string;
-
-  @Column({ default: AuthProvidersEnum.email })
-  provider: string;
-
-  @Index()
-  @Column({ type: String, nullable: true })
-  socialId?: string | null;
+  @Column({ type: String, name: 'password_hash', nullable: true })
+  password?: string | null;
 
   @Index()
   @Column({ type: String, nullable: true })

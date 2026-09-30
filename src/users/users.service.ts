@@ -9,7 +9,6 @@ import { FilterUserDto, SortUserDto } from './dto/query-user.dto';
 import { UserRepository } from './infrastructure/persistence/user.repository';
 import { User } from './domain/user';
 import bcrypt from 'bcryptjs';
-import { AuthProvidersEnum } from '../auth/auth-providers.enum';
 import { FilesService } from '../files/files.service';
 import { RoleEnum } from '../roles/roles.enum';
 import { StatusEnum } from '../statuses/statuses.enum';
@@ -18,6 +17,7 @@ import { FileType } from '../files/domain/file';
 import { Role } from '../roles/domain/role';
 import { Status } from '../statuses/domain/status';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { normalizeEmail } from '../utils/normalize-email';
 
 @Injectable()
 export class UsersService {
@@ -39,7 +39,7 @@ export class UsersService {
 
     let email: string | null = null;
 
-    const normalizedEmail = createUserDto.email?.trim().toLowerCase() ?? null;
+    const normalizedEmail = normalizeEmail(createUserDto.email);
 
     if (normalizedEmail) {
       const userObject =
@@ -124,8 +124,6 @@ export class UsersService {
       photo: photo,
       role: role,
       status: status,
-      provider: createUserDto.provider ?? AuthProvidersEnum.email,
-      socialId: createUserDto.socialId,
     });
 
     if (role) {
@@ -160,22 +158,7 @@ export class UsersService {
   }
 
   findByEmail(email: User['email']): Promise<NullableType<User>> {
-    return this.usersRepository.findByEmail(
-      email ? email.trim().toLowerCase() : email,
-    );
-  }
-
-  findBySocialIdAndProvider({
-    socialId,
-    provider,
-  }: {
-    socialId: User['socialId'];
-    provider: User['provider'];
-  }): Promise<NullableType<User>> {
-    return this.usersRepository.findBySocialIdAndProvider({
-      socialId,
-      provider,
-    });
+    return this.usersRepository.findByEmail(normalizeEmail(email));
   }
 
   async update(
@@ -199,9 +182,9 @@ export class UsersService {
     let email: string | null | undefined = undefined;
 
     if (updateUserDto.email) {
-      const userObject = await this.usersRepository.findByEmail(
-        updateUserDto.email,
-      );
+      const normalizedEmail = normalizeEmail(updateUserDto.email);
+      const userObject =
+        await this.usersRepository.findByEmail(normalizedEmail);
 
       if (userObject && userObject.id !== id) {
         throw new UnprocessableEntityException({
@@ -212,7 +195,7 @@ export class UsersService {
         });
       }
 
-      email = updateUserDto.email;
+      email = normalizedEmail;
     } else if (updateUserDto.email === null) {
       email = null;
     }
@@ -289,8 +272,6 @@ export class UsersService {
       photo,
       role,
       status,
-      provider: updateUserDto.provider,
-      socialId: updateUserDto.socialId,
       accountStatus: identityFields.accountStatus,
       emailVerifiedAt: identityFields.emailVerifiedAt,
     });

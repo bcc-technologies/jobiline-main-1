@@ -1,5 +1,5 @@
 export interface SocialInterface {
-  id: string;
+  providerSubject: string;
   firstName?: string;
   lastName?: string;
   email?: string;

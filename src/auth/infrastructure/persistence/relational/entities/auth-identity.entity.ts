@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -18,6 +19,7 @@ export class AuthIdentityEntity {
     onDelete: 'CASCADE',
   })
   @Index()
+  @JoinColumn({ name: 'user_id' })
   user: UserEntity;
 
   @Column({ type: String })

@@ -60,9 +60,9 @@ export class AuthFacebookService {
 
       // Map Facebook data to our internal social user interface
       return {
-        id: data.id,
+        providerSubject: data.id,
         email: data.email || undefined, // Email may not be present depending on user permissions
-        emailVerified: Boolean(data.email),
+        emailVerified: false,
         firstName: data.first_name || '',
         lastName: data.last_name || '',
       };

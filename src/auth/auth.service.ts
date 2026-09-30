@@ -12,7 +12,6 @@ import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
 import { AuthEmailLoginDto } from './dto/auth-email-login.dto';
 import { AuthUpdateDto } from './dto/auth-update.dto';
-import { AuthProvidersEnum } from './auth-providers.enum';
 import { SocialInterface } from '../social/interfaces/social.interface';
 import { AuthRegisterLoginDto } from './dto/auth-register-login.dto';
 import { NullableType } from '../utils/types/nullable.type';
@@ -29,9 +28,7 @@ import { SessionService } from '../session/session.service';
 import { StatusEnum } from '../statuses/statuses.enum';
 import { User } from '../users/domain/user';
 import { AccountStatus } from '../users/domain/account-status.enum';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { AuthIdentityEntity } from './infrastructure/persistence/relational/entities/auth-identity.entity';
+import { AuthIdentityService } from './auth-identity.service';
 
 @Injectable()
 export class AuthService {
@@ -41,8 +38,7 @@ export class AuthService {
     private readonly sessionService: SessionService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService<AllConfigType>,
-    @InjectRepository(AuthIdentityEntity)
-    private readonly authIdentityRepository: Repository<AuthIdentityEntity>,
+    private readonly authIdentityService: AuthIdentityService,
   ) {}
 
   async validateLogin(loginDto: AuthEmailLoginDto): Promise<LoginResponseDto> {
@@ -59,12 +55,6 @@ export class AuthService {
       user.accountStatus === AccountStatus.DEACTIVATED
     ) {
       throw new UnauthorizedException();
-    }
-
-    if (user.provider !== AuthProvidersEnum.email) {
-      throw this.invalidLoginException({
-        email: `needLoginViaProvider:${user.provider}`,
-      });
     }
 
     if (!user.password) {
@@ -128,115 +118,10 @@ export class AuthService {
     authProvider: string,
     socialData: SocialInterface,
   ): Promise<LoginResponseDto> {
-    let user: NullableType<User> = null;
-    const socialEmail = socialData.email?.toLowerCase();
-    let userByEmail: NullableType<User> = null;
-
-    if (socialEmail && !socialData.emailVerified) {
-      throw new UnprocessableEntityException({
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        errors: {
-          email: 'emailNotVerified',
-        },
-      });
-    }
-
-    if (socialEmail) {
-      userByEmail = await this.usersService.findByEmail(socialEmail);
-    }
-
-    if (socialData.id) {
-      const identity = await this.authIdentityRepository.findOne({
-        where: {
-          provider: authProvider,
-          providerSubject: socialData.id,
-        },
-        relations: { user: true },
-      });
-
-      if (identity) {
-        identity.lastUsedAt = new Date();
-        await this.authIdentityRepository.save(identity);
-        user = await this.usersService.findById(identity.user.id);
-      } else {
-        user = await this.usersService.findBySocialIdAndProvider({
-          socialId: socialData.id,
-          provider: authProvider,
-        });
-      }
-    }
-
-    if (user) {
-      if (socialEmail && !userByEmail) {
-        user.email = socialEmail;
-      }
-      await this.usersService.update(user.id, user);
-    } else if (userByEmail && userByEmail.emailVerifiedAt) {
-      user = userByEmail;
-
-      if (user.status?.id?.toString() === StatusEnum.inactive.toString()) {
-        user.provider = authProvider;
-        user.socialId = socialData.id;
-
-        await this.usersService.update(user.id, user);
-      }
-    } else if (socialData.id) {
-      const role = {
-        id: RoleEnum.user,
-      };
-      const status = {
-        id: StatusEnum.active,
-      };
-
-      user = await this.usersService.create({
-        email: socialEmail ?? null,
-        firstName: socialData.firstName ?? null,
-        lastName: socialData.lastName ?? null,
-        socialId: socialData.id,
-        provider: authProvider,
-        role,
-        status,
-      });
-
-      user = await this.usersService.findById(user.id);
-    }
-
-    if (user && socialData.id) {
-      const identity = await this.authIdentityRepository.findOne({
-        where: {
-          provider: authProvider,
-          providerSubject: socialData.id,
-        },
-      });
-
-      if (!identity) {
-        await this.authIdentityRepository.save(
-          this.authIdentityRepository.create({
-            user: { id: Number(user.id) },
-            provider: authProvider,
-            providerSubject: socialData.id,
-            providerEmail: socialEmail ?? null,
-            lastUsedAt: new Date(),
-          }),
-        );
-      }
-    }
-
-    if (!user) {
-      throw new UnprocessableEntityException({
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        errors: {
-          user: 'userNotFound',
-        },
-      });
-    }
-
-    if (
-      user.accountStatus === AccountStatus.SUSPENDED ||
-      user.accountStatus === AccountStatus.DEACTIVATED
-    ) {
-      throw new UnauthorizedException();
-    }
+    const user = await this.authIdentityService.authenticate(
+      authProvider,
+      socialData,
+    );
 
     const hash = crypto
       .createHash('sha256')

@@ -18,11 +18,7 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @ApiPropertyOptional()
   @IsOptional()
   @MinLength(6)
-  password?: string;
-
-  provider?: string;
-
-  socialId?: string | null;
+  password?: string | null;
 
   @ApiPropertyOptional({ example: 'John', type: String })
   @IsOptional()
