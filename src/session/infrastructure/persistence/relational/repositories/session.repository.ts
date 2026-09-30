@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, MoreThan, Repository } from 'typeorm';
 import { SessionEntity } from '../entities/session.entity';
 import { NullableType } from '../../../../../utils/types/nullable.type';
 
@@ -75,12 +75,18 @@ export class SessionRelationalRepository implements SessionRepository {
     }
 
     if (entity.hash !== conditions.hash) {
-      await this.revokeByFamilyId(entity.tokenFamilyId, 'refresh_reuse');
+      await this.revokeByFamilyId(entity.tokenFamilyId, 'REFRESH_TOKEN_REUSE');
       return null;
     }
 
+    const now = new Date();
     const result = await this.sessionRepository.update(
-      { id: Number(conditions.id), hash: conditions.hash },
+      {
+        id: Number(conditions.id),
+        hash: conditions.hash,
+        revokedAt: IsNull(),
+        expiresAt: MoreThan(now),
+      },
       {
         hash: payload.hash,
         lastUsedAt: payload.lastUsedAt,
@@ -88,6 +94,23 @@ export class SessionRelationalRepository implements SessionRepository {
     );
 
     if (!result.affected) {
+      const currentEntity = await this.sessionRepository.findOne({
+        where: { id: Number(conditions.id) },
+      });
+
+      // A concurrent successful rotation makes this attempt a replay. Only
+      // one request may rotate a token; the loser compromises the family.
+      if (
+        currentEntity &&
+        !currentEntity.revokedAt &&
+        currentEntity.expiresAt > new Date() &&
+        currentEntity.hash !== conditions.hash
+      ) {
+        await this.revokeByFamilyId(
+          entity.tokenFamilyId,
+          'REFRESH_TOKEN_REUSE',
+        );
+      }
       return null;
     }
 
@@ -129,7 +152,7 @@ export class SessionRelationalRepository implements SessionRepository {
 
   async revokeByFamilyId(familyId: string, reason: string): Promise<void> {
     await this.sessionRepository.update(
-      { tokenFamilyId: familyId },
+      { tokenFamilyId: familyId, revokedAt: IsNull() },
       { revokedAt: new Date(), revocationReason: reason },
     );
   }

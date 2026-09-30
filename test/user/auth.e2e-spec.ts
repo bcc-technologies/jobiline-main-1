@@ -258,6 +258,48 @@ describe('Auth Module', () => {
         .expect(401);
     });
 
+    it('should revoke only the compromised family after concurrent refresh reuse', async () => {
+      const firstSession = await request(app)
+        .post('/api/v1/auth/email/login')
+        .send({ email: newUserEmail, password: newUserPassword })
+        .then(({ body }) => body.refreshToken);
+      const unrelatedSession = await request(app)
+        .post('/api/v1/auth/email/login')
+        .send({ email: newUserEmail, password: newUserPassword })
+        .then(({ body }) => body.refreshToken);
+
+      const concurrentResults = await Promise.all([
+        request(app)
+          .post('/api/v1/auth/refresh')
+          .auth(firstSession, { type: 'bearer' })
+          .send(),
+        request(app)
+          .post('/api/v1/auth/refresh')
+          .auth(firstSession, { type: 'bearer' })
+          .send(),
+      ]);
+      const successfulRotation = concurrentResults.find(
+        (result) => result.status === 200,
+      );
+
+      expect(concurrentResults.map((result) => result.status).sort()).toEqual([
+        200, 401,
+      ]);
+      expect(successfulRotation?.body.refreshToken).toBeDefined();
+
+      await request(app)
+        .post('/api/v1/auth/refresh')
+        .auth(successfulRotation!.body.refreshToken, { type: 'bearer' })
+        .send()
+        .expect(401);
+
+      await request(app)
+        .post('/api/v1/auth/refresh')
+        .auth(unrelatedSession, { type: 'bearer' })
+        .send()
+        .expect(200);
+    });
+
     it('should update profile successfully: /api/v1/auth/me (PATCH)', async () => {
       const newUserNewName = Date.now();
       const newUserNewPassword = 'new-secret';
